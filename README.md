@@ -17,13 +17,18 @@ A collection of Terraform modules that I consistently use in projects.
 
 In order to use these modules, you can simply use the github style reference.
 
+    module "use_module" {
+      source = "github.com/jyore/terraform_modules//<module-name>"
+      ...
+    }
+
+
 Example to reference the `subnet` module
-```
-module "mysubnet" {
-  source = "github.com/jyore/terraform_modules//subnet"
-  ...
-}
-```
+
+    module "mysubnet" {
+      source = "github.com/jyore/terraform_modules//subnet"
+      ...
+    }
 
 
 # Modules
@@ -179,11 +184,10 @@ Example:
 
 Say I have a template that is isolated to build my VPC and Subnets in AWS, which outputs the
 following. A list of `subnet_ids`, a list of `subnet_tag_names`, and my `vpc_id`.
-```
-subnet_ids = subnet-12345678,subnet-87654321,subnet-abcdefab,subnet-fedcbafe
-subnet_tag_names = nonprod-application-az1,nonprod-application-az2,nonprod-database-az1,nonprod-database-az2
-vpc_id = vpc-12345678
-```
+
+    subnet_ids = subnet-12345678,subnet-87654321,subnet-abcdefab,subnet-fedcbafe
+    subnet_tag_names = nonprod-application-az1,nonprod-application-az2,nonprod-database-az1,nonprod-database-az2
+    vpc_id = vpc-12345678
 
 Now I want to create an autoscaling group that launches instances into my application subnets,
 which provides me with 2 Availability Zones for fault-tolerance. Trying to remember which subnet
@@ -192,35 +196,33 @@ reference these by name. Furthermore, if we specify our VPC environment variable
 we can interpolate these names, this requiring no code changes between our nonprod and prod
 environments.
 
-```
-# Get our vpc remote state, giving us access to it's outputs
-data "terraform_remote_state" "vpc" {
-  backend = "s3"
-  config {
-    region = "${var.region}"
-    bucket = "${var.tf_state_bucket}"
-    key    = "vpc_${var.vpc_env}.tfstate"
-  }
-}
+    # Get our vpc remote state, giving us access to it's outputs
+    data "terraform_remote_state" "vpc" {
+      backend = "s3"
+      config {
+        region = "${var.region}"
+        bucket = "${var.tf_state_bucket}"
+        key    = "vpc_${var.vpc_env}.tfstate"
+      }
+    }
+    
+    # Use our module to extract the application subnet ids
+    module "application_subnets" {
+      source = "github.com/jyore/terraform_modules//multi_key_lookup"
+    
+      keys           = "${var.vpc_env}-application-az1,${var.vpc_env}-application-az2"
+      map_key_list   = "${data.terraform_remote_state.vpc.subnet_tag_names}"
+      map_value_list = "${data.terraform_remote_state.vpc.subnet_ids}"
+    }
+    
+    
+    # Declare our Autoscaling Group, using the subnets
+    resource "aws_autoscaling_group" "autoscale_conf" {
+      ...
+      vpc_zone_identifier = ["${compact(split(",", module.application_subnets.values))}"]
+      ...
+    }
 
-# Use our module to extract the application subnet ids
-module "application_subnets" {
-  source = "github.com/jyore/terraform_modules//multi_key_lookup"
-
-  keys           = "${var.vpc_env}-application-az1,${var.vpc_env}-application-az2"
-  map_key_list   = "${data.terraform_remote_state.vpc.subnet_tag_names}"
-  map_value_list = "${data.terraform_remote_state.vpc.subnet_ids}"
-}
-
-
-# Declare our Autoscaling Group, using the subnets
-resource "aws_autoscaling_group" "autoscale_conf" {
-  ...
-  vpc_zone_identifier = ["${compact(split(",", module.application_subnets.values))}"]
-  ...
-}
-
-```
 
 
 ## subnet
@@ -254,43 +256,42 @@ subnets and 2 Database subnets into Availability Zones A and C in the us-east-1 
 that simply with the following code.
 
 
-```
-variable "vpc_env" { default = "nonprod" }
-variable "region"  { default = "us-east-1" }
+    variable "vpc_env" { default = "nonprod" }
+    variable "region"  { default = "us-east-1" }
+    
+    variable "availability_zones" {
+      type = "list"
+      default = ["a", "c"]
+    }
+    
+    variable "nonprod-subnets" {
+      type = "map"
+      default = {
+        nonprod-database-az1    = "10.0.1.0/24"
+        nonprod-database-az2    = "10.0.2.0/24"
+        nonprod-application-az1 = "10.0.11.0/24"
+        nonprod-application-az2 = "10.0.12.0/24"
+      }
+    }
+    
+    resource "aws_vpc" "vpc" {
+      cidr_block = "10.0.0.0/16"
+    
+      tags {
+        Name       = "my-${var.vpc_env}-vpc"
+        Environment = "${var.vpc_env}"
+      }
+    }
+    
+    module "subnets" {
+      source = "github.com/jyore/terraform_modules//subnet"
+    
+      vpc_id  = "${aws_vpc.vpc.id}"
+      region  = "${var.region}"
+      zones   = "${var.availability_zones}"
+      subnets = "${var.${vpc_env}-subnets}"
+    }
 
-variable "availability_zones" {
-  type = "list"
-  default = ["a", "c"]
-}
-
-variable "nonprod-subnets" {
-  type = "map"
-  default = {
-    nonprod-database-az1    = "10.0.1.0/24"
-    nonprod-database-az2    = "10.0.2.0/24"
-    nonprod-application-az1 = "10.0.11.0/24"
-    nonprod-application-az2 = "10.0.12.0/24"
-  }
-}
-
-resource "aws_vpc" "vpc" {
-  cidr_block = "10.0.0.0/16"
-
-  tags {
-    Name       = "my-${var.vpc_env}-vpc"
-    Environment = "${var.vpc_env}"
-  }
-}
-
-module "subnets" {
-  source = "github.com/jyore/terraform_modules//subnet"
-
-  vpc_id  = "${aws_vpc.vpc.id}"
-  region  = "${var.region}"
-  zones   = "${var.availability_zones}"
-  subnets = "${var.${vpc_env}-subnets}"
-}
-```
 
 Now we will have all of our subnets created for our vpc. We can easily add/update/remove subnets 
 by modifying variables. We can also manage additional environments through variables instead and
