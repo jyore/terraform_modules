@@ -5,8 +5,8 @@ A collection of Terraform modules that I consistently use in projects.
 
 # Table of Contents
 
-* [Usage](#Usage)
-* [Modules](#Modules)
+* [Usage](#usage)
+* [Modules](#modules)
   * [multi_key_lookup](#multi_key_lookup)
   * [subnet](#subnet)
 
