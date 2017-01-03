@@ -6,7 +6,7 @@ variable "map_value_list" { description = "CSV List of values in the map to perf
 
 data "template_file" "values" {
   count = "${length(split(",", var.keys))}"
-  template = "${value}"
+  template = "$${value}"
 
   vars {
     value = "${element(split(",", var.map_value_list), index(split(",", var.map_key_list), element(split(",", var.keys), count.index)))}"
