@@ -254,21 +254,12 @@ Given we have created the following via the [subnet](#subnet) module
 
 We might do the following
 
-    data "terraform_remote_state" "vpc" {
-      backend = "s3"
-      config {
-        region = "${var.region}"
-        bucket = "${var.tf_state_bucket}"
-        key    = "vpc_${var.vpc_env}.tfstate"
-      }
-    }
-
     module "nat_subnets" {
       source = "github.com/jyore/terraform_modules//multi_key_lookup"
     
       keys           = "application-${var.vpc_env}-nat-az1,application-${var.vpc_env}-nat-az2"
-      map_key_list   = "${data.terraform_remote_state.vpc.subnet_tag_names}"
-      map_value_list = "${data.terraform_remote_state.vpc.subnet_ids}"
+      map_key_list   = "${module.subnets.subnet_tag_names}"
+      map_value_list = "${module.subnets.subnet_ids}"
     }
 
     module "natgw" {
