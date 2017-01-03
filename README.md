@@ -10,6 +10,7 @@ A collection of Terraform modules that I consistently use in projects.
   * [iam_role](#iam_role)
   * [iam_user](#iam_user)
   * [multi_key_lookup](#multi_key_lookup)
+  * [natgw](#natgw)
   * [subnet](#subnet)
 
 
@@ -224,9 +225,64 @@ environments.
     }
 
 
+## natgw
 
-## subnet
+This module is another convienience module that will build EIP and NAT Gateway resources for all
+subnets in the provided list.
 
+
+### Variables
+
+> **nat_subnets**: A list of subnet_ids to create NAT Gateways for
+
+
+### Outputs
+
+> **natgw_ids**: A CSV list of all the created NAT Gateway IDs
+> <br/>**eni_ids**: A CSV list of all the created ENI IDs
+
+
+### Usage
+
+This is another module that is handy to use in combination with the [multi_key_lookup](#multi_key_lookup) module.
+
+Given we have created the following via the [subnet](#subnet) module
+
+    subnet_ids = subnet-12345678,subnet-87654321,subnet-abcdefab,subnet-fedcbafe
+    subnet_tag_names = application-nonprod-nat-az1,application-dev-no-nat-az1,application-nonprod-nat-az2,application-dev-no-nat-az2
+
+
+We might do the following
+
+    data "terraform_remote_state" "vpc" {
+      backend = "s3"
+      config {
+        region = "${var.region}"
+        bucket = "${var.tf_state_bucket}"
+        key    = "vpc_${var.vpc_env}.tfstate"
+      }
+    }
+
+    module "nat_subnets" {
+      source = "github.com/jyore/terraform_modules//multi_key_lookup"
+    
+      keys           = "application-${var.vpc_env}-nat-az1,application-${var.vpc_env}-nat-az2"
+      map_key_list   = "${data.terraform_remote_state.vpc.subnet_tag_names}"
+      map_value_list = "${data.terraform_remote_state.vpc.subnet_ids}"
+    }
+
+    module "natgw" {
+      source      = "github.com/jyore/terraform_modules//natgw"
+      nat_subnets = ["${split(",", module.nat_subnets.values)}"]
+    }
+
+
+We would then get have NAT Gateways configured for the 2 subnets from our list (subnet-12345678 & 
+subnet-abcdefab)
+
+
+
+# subnet
 This module is a convience module for declaring AWS Subnets with a single key-value map variable.
 This generates output lists that are ready for the [multi_key_lookup](#multi_key_lookup) module.
 
