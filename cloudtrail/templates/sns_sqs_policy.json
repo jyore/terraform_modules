@@ -1,0 +1,21 @@
+{  
+   "Version":"2012-10-17",
+   "Id":"arn:aws:sqs:${region}:${account_id}:${queue_name}/SQSDefaultPolicy",
+   "Statement":[  
+      {  
+         "Sid":"",
+         "Effect":"Allow",
+         "Principal":{  
+            "AWS":"*"
+         },
+         "Action":"SQS:SendMessage",
+         "Resource":"arn:aws:sqs:${region}:${account_id}:${queue_name}",
+         "Condition":{  
+            "ArnEquals":{  
+               "aws:SourceArn":"arn:aws:sns:${region}:${account_id}:${topic_name}"
+            }
+         }
+      }
+   ]
+}
+
