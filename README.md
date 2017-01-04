@@ -37,4 +37,5 @@ Utility module for extracting 1-N values from a key-value pair map
 of NAT Gateways and EIPs for a list of given subnets
 * **[subnet](https://github.com/jyore/terraform_modules/tree/master/subnet)**: Creates subnets
 from a map of subnet names and associated CIDR blocks
-
+* **[vpn](https://github.com/jyore/terraform_modules/tree/master/vpn)**: Encapsulates creation of
+VPN Gateway, Customer Gateway, & VPN Connection resources
