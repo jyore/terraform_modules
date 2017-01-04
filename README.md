@@ -23,7 +23,8 @@ Example to reference the `subnet` module
 
 # Modules
 
-This section contains a list of modules and how to use them
+This section contains a list of modules and brief descriptions. Full documentation of each module
+is found in the modules' respective subdirectory. 
 
 
 * **[iam_role](https://github.com/jyore/terraform_modules/tree/master/iam_role)**: Encapsulates 
