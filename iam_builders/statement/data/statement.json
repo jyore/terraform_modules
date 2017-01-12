@@ -1,0 +1,1 @@
+{"Sid":"${sid}","Effect":"${effect}","Resource":${resources},"Action":${actions}${principal}${not_principal}${not_action}${not_resource}${conditions}}
